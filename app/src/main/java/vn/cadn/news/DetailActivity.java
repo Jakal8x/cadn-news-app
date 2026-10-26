@@ -3,10 +3,12 @@ package vn.cadn.news;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.net.http.SslError;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
@@ -75,12 +77,17 @@ public class DetailActivity extends AppCompatActivity {
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
+            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+                // Bỏ qua lỗi chứng chỉ của máy chủ CADN để hiển thị nội dung
+                handler.proceed();
+            }
+
+            @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 String url = request.getUrl().toString();
                 if (url.contains("cadn.com.vn")) {
-                    return false; // Load within WebView
+                    return false;
                 }
-                // Open external links in external browser
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
                 startActivity(intent);
                 return true;
@@ -96,7 +103,6 @@ public class DetailActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.GONE);
-                // Inject clean reading CSS to eliminate popups and header clutter
                 injectCleanReadingMode(view);
             }
         });
