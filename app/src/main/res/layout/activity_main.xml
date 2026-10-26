@@ -14,8 +14,17 @@
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
             android:background="#0D47A1"
-            app:title="Báo Công an Đà Nẵng Online"
-            app:titleTextColor="#FFFFFF" />
+            app:contentInsetStart="0dp"
+            app:contentInsetEnd="0dp">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="Báo Công an Đà Nẵng Online"
+                android:textColor="#FFFFFF"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+        </androidx.appcompat.widget.Toolbar>
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tabLayout"
             android:layout_width="match_parent"
