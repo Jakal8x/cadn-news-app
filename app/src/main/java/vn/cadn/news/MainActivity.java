@@ -42,6 +42,9 @@ public class MainActivity extends AppCompatActivity {
         trustAllCertificates();
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
+        }
         initCategories();
         TabLayout tabLayout = findViewById(R.id.tabLayout);
         for (Category cat : categories) {
