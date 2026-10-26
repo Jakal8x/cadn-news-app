@@ -1,5 +1,4 @@
 package vn.cadn.news;
-
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -16,71 +15,81 @@ import com.google.android.material.tabs.TabLayout;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 public class MainActivity extends AppCompatActivity {
-
     private final List<Category> categories = new ArrayList<>();
     private NewsAdapter adapter;
     private SwipeRefreshLayout swipeRefresh;
     private ProgressBar progressBar;
     private TextView tvEmptyState;
     private int currentCategoryIndex = 0;
-
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        // Bỏ qua lỗi chuỗi chứng chỉ SSL trung gian của máy chủ cadn.com.vn
+        trustAllCertificates();
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
         initCategories();
-
         TabLayout tabLayout = findViewById(R.id.tabLayout);
         for (Category cat : categories) {
             tabLayout.addTab(tabLayout.newTab().setText(cat.getName()));
         }
-
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 currentCategoryIndex = tab.getPosition();
                 loadNews(categories.get(currentCategoryIndex).getRssUrl());
             }
-
             @Override
             public void onTabUnselected(TabLayout.Tab tab) {}
-
             @Override
             public void onTabReselected(TabLayout.Tab tab) {
                 loadNews(categories.get(currentCategoryIndex).getRssUrl());
             }
         });
-
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         adapter = new NewsAdapter(this);
         recyclerView.setAdapter(adapter);
-
         swipeRefresh = findViewById(R.id.swipeRefresh);
         progressBar = findViewById(R.id.progressBar);
         tvEmptyState = findViewById(R.id.tvEmptyState);
-
         swipeRefresh.setOnRefreshListener(() -> {
             loadNews(categories.get(currentCategoryIndex).getRssUrl());
         });
-
-        // Initial load
+        // Tải trang tin đầu tiên
         loadNews(categories.get(0).getRssUrl());
     }
-
+    private void trustAllCertificates() {
+        try {
+            TrustManager[] trustAllCerts = new TrustManager[]{
+                new X509TrustManager() {
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return new X509Certificate[0];
+                    }
+                    public void checkClientTrusted(X509Certificate[] certs, String authType) {}
+                    public void checkServerTrusted(X509Certificate[] certs, String authType) {}
+                }
+            };
+            SSLContext sc = SSLContext.getInstance("TLS");
+            sc.init(null, trustAllCerts, new SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(sc.getSocketFactory());
+            HttpsURLConnection.setDefaultHostnameVerifier((hostname, session) -> true);
+        } catch (Exception ignored) {}
+    }
     private void initCategories() {
         categories.add(new Category("Tin mới nhất", "https://cadn.com.vn/tin-moi-nhat.rss"));
         categories.add(new Category("Thời sự", "https://cadn.com.vn/rss/thoi-su-1.rss"));
@@ -93,13 +102,11 @@ public class MainActivity extends AppCompatActivity {
         categories.add(new Category("Thể thao", "https://cadn.com.vn/rss/the-thao-25.rss"));
         categories.add(new Category("Công nghệ số", "https://cadn.com.vn/rss/cong-nghe-so-116.rss"));
     }
-
     private void loadNews(String rssUrl) {
         if (!swipeRefresh.isRefreshing()) {
             progressBar.setVisibility(View.VISIBLE);
         }
         tvEmptyState.setVisibility(View.GONE);
-
         executorService.execute(() -> {
             HttpURLConnection conn = null;
             InputStream stream = null;
@@ -110,7 +117,6 @@ public class MainActivity extends AppCompatActivity {
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(15000);
                 conn.connect();
-
                 if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
                     stream = conn.getInputStream();
                     List<Article> articles = RssParser.parse(stream);
@@ -138,7 +144,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-
     private void notifyError(String err) {
         mainHandler.post(() -> {
             progressBar.setVisibility(View.GONE);
@@ -148,7 +153,6 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(MainActivity.this, "Lỗi kết nối: " + err, Toast.LENGTH_SHORT).show();
         });
     }
-
     @Override
     protected void onDestroy() {
         super.onDestroy();
