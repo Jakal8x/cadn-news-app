@@ -11,6 +11,7 @@ import android.view.View;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -18,12 +19,21 @@ import android.widget.ProgressBar;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import java.io.ByteArrayInputStream;
 
 public class DetailActivity extends AppCompatActivity {
 
     private WebView webView;
     private ProgressBar progressBar;
     private Article article;
+
+    // Danh sách domain máy chủ quảng cáo cần chặn
+    private static final String[] AD_HOSTS = new String[] {
+        "googleads", "pagead2", "googlesyndication", "doubleclick",
+        "adservice", "eclick", "adnxs", "criteo", "pubmatic",
+        "scorecardresearch", "facebook.net", "connect.facebook.net",
+        "googletagservices", "smartadserver", "ambientdigitalgroup"
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,8 +88,19 @@ public class DetailActivity extends AppCompatActivity {
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-                // Bỏ qua lỗi chứng chỉ của máy chủ CADN để hiển thị nội dung
                 handler.proceed();
+            }
+
+            // Chặn tải script và ảnh quảng cáo từ cấp độ gói tin mạng
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                String url = request.getUrl().toString().toLowerCase();
+                for (String adHost : AD_HOSTS) {
+                    if (url.contains(adHost)) {
+                        return new WebResourceResponse("text/plain", "utf-8", new ByteArrayInputStream(new byte[0]));
+                    }
+                }
+                return super.shouldInterceptRequest(view, request);
             }
 
             @Override
@@ -97,27 +118,51 @@ public class DetailActivity extends AppCompatActivity {
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
                 progressBar.setVisibility(View.VISIBLE);
+                injectAdBlockAndCleanMode(view);
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
                 progressBar.setVisibility(View.GONE);
-                injectCleanReadingMode(view);
+                injectAdBlockAndCleanMode(view);
             }
         });
     }
 
-    private void injectCleanReadingMode(WebView view) {
-        String css = "header, footer, .banner-ads, .qc-sticky, .floating-ads { display: none !important; }" +
-                     "body { font-size: 17px !important; line-height: 1.6 !important; padding: 10px !important; }";
-        String js = "javascript:(function() {" +
-                "var parent = document.getElementsByTagName('head').item(0);" +
-                "var style = document.createElement('style');" +
-                "style.type = 'text/css';" +
-                "style.innerHTML = '" + css + "';" +
-                "parent.appendChild(style)" +
-                "})()";
+    private void injectAdBlockAndCleanMode(WebView view) {
+        // Loại bỏ triệt để banner quảng cáo, header, footer và định dạng phông chữ chuẩn
+        String css =
+            ".ad-unit, .adsbygoogle, ins.adsbygoogle, [class*='adv'], [class*='banner'], " +
+            "[id*='google_ads'], [id*='banner'], [class*='sticky-ads'], [class*='floating-ads'], " +
+            "[class*='popup'], [class*='cadn-modal'], [class*='cadn-login'], .cadn-control-share, " +
+            ".fb-login-button, .g-signin2, .icon-adv, header, footer, nav, .cadn-header, " +
+            ".cadn-footer, .info-ft, .info-link-ft, .cadn-menu-cate " +
+            "{ display: none !important; visibility: hidden !important; height: 0 !important; max-height: 0 !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; } " +
+            "body { padding: 14px 16px !important; margin: 0 !important; font-size: 18px !important; line-height: 1.7 !important; color: #212121 !important; background-color: #FAFAFA !important; } " +
+            "img { max-width: 100% !important; height: auto !important; border-radius: 8px !important; display: block !important; margin: 12px auto !important; }";
+
+        String js =
+            "javascript:(function() {" +
+            "  var style = document.getElementById('cadn-clean-style');" +
+            "  if (!style) {" +
+            "    style = document.createElement('style');" +
+            "    style.id = 'cadn-clean-style';" +
+            "    style.type = 'text/css';" +
+            "    style.innerHTML = '" + css.replace("'", "\\'") + "';" +
+            "    (document.head || document.documentElement).appendChild(style);" +
+            "  }" +
+            "  function removeAds() {" +
+            "    var selectors = ['.ad-unit', '.adsbygoogle', 'ins.adsbygoogle', '[class*=\"adv\"]', '[class*=\"banner\"]', '[id*=\"google_ads\"]', 'header', 'footer', 'nav', '.info-ft', '.info-link-ft', '.cadn-login', '.cadn-modal'];" +
+            "    selectors.forEach(function(sel) {" +
+            "      var els = document.querySelectorAll(sel);" +
+            "      for (var i = 0; i < els.length; i++) { els[i].remove(); }" +
+            "    });" +
+            "  }" +
+            "  removeAds();" +
+            "  setInterval(removeAds, 700);" +
+            "})()";
+
         view.evaluateJavascript(js, null);
     }
 
