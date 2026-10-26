@@ -43,8 +43,7 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
         if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayShowTitleEnabled(true);
-            getSupportActionBar().setTitle("Báo Công an Đà Nẵng Online");
+            getSupportActionBar().setDisplayShowTitleEnabled(false);
         }
         initCategories();
         TabLayout tabLayout = findViewById(R.id.tabLayout);
