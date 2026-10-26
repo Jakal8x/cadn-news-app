@@ -14,8 +14,6 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v3
     - name: Auto-Patch Manifest & Environment
       run: |
         # 1. Kich hoat AndroidX
@@ -25,8 +23,8 @@ jobs:
         # 2. Thay the icon thieu trong AndroidManifest bang placeholder co san
         sed -i 's/@mipmap\/ic_launcher/@drawable\/ic_placeholder/g' app/src/main/AndroidManifest.xml
         sed -i '/android:roundIcon/d' app/src/main/AndroidManifest.xml
-        # 3. Chap nhan giay phep Android SDK
-        yes | sdkmanager --licenses || true
+        # 3. Chap nhan giay phep Android SDK co san tren may ao Ubuntu
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
